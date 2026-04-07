@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>年次有給休暇 取得管理</title>
+<link rel="stylesheet" href="Nenkyu.css">
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <span class="header-title">年次有給休暇 取得管理</span>
+    <span class="file-badge" id="fileBadge">ファイル未選択</span>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-hdr" id="btnOpen">開く</button>
+    <button class="btn btn-hdr" id="btnNew">新規作成</button>
+    <button class="btn btn-hdr" id="btnRestore" style="display:none">前回ファイル復元</button>
+    <div class="sep"></div>
+    <button class="btn btn-icon" id="btnSettings" title="設定" disabled>⚙</button>
+  </div>
+</div>
+
+<div class="no-file-screen" id="noFileScreen">
+  <h2>最初に保存先ファイルを作成してください</h2>
+  <p>初回は「新規作成」で JSON を作成します。2回目以降は前回ファイルを自動復元します。</p>
+  <div class="actions">
+    <button class="btn btn-primary" id="btnOpenStart">開く</button>
+    <button class="btn btn-primary" id="btnNewStart">新規作成</button>
+  </div>
+  <div class="restore-inline" id="restoreHint" style="display:none">
+    前回ファイル: <span id="restoreName"></span>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main" id="mainContent" style="display:none">
+
+  <!-- 集計 -->
+  <div>
+    <div class="summary">
+      <div class="sum-item">
+        <div class="sum-label">累計取得時間</div>
+        <div class="sum-val" id="sAcquired">0<span class="sum-unit">h</span></div>
+      </div>
+      <div class="sum-item">
+        <div class="sum-label">残り時間</div>
+        <div class="sum-val" id="sRemaining">—</div>
+      </div>
+      <div class="sum-item">
+        <div class="sum-label">取得可能残日数</div>
+        <div class="sum-val" id="sDays">—</div>
+      </div>
+      <div class="sum-item">
+        <div class="sum-label">期限まで</div>
+        <div class="sum-val" id="sDeadline">—</div>
+      </div>
+    </div>
+    <div class="gauge-wrap">
+      <div class="gauge-bar">
+        <div class="gauge-taken" id="gaugeTaken">
+          <span class="gauge-lbl" id="gaugeTakenLbl"></span>
+        </div>
+        <div class="gauge-rest">
+          <span class="gauge-lbl gauge-lbl-rest" id="gaugeRestLbl"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 月別グラフ -->
+  <div class="card">
+    <div class="card-head"><span class="card-title">月別取得状況</span></div>
+    <div class="card-body" style="padding:12px 18px 10px">
+      <div class="month-chart" id="monthChart"></div>
+    </div>
+  </div>
+
+  <!-- 登録フォーム -->
+  <div class="card" id="formCard">
+    <div class="card-head">
+      <span class="card-title" id="formTitle">新規登録</span>
+      <button class="btn btn-secondary" id="btnCancel" style="display:none;font-size:12px;padding:4px 10px">キャンセル</button>
+    </div>
+    <div class="card-body">
+      <input type="hidden" id="editId">
+      <div class="form-row">
+        <div class="fg">
+          <label>取得日</label>
+          <input type="date" id="iDate" style="width:150px">
+        </div>
+        <div class="fg">
+          <label>種別</label>
+          <select id="iType" style="width:100px">
+            <option value="full">終日</option>
+            <option value="partial">時間単位</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>開始</label>
+          <input type="time" id="iStart" disabled style="width:100px">
+        </div>
+        <div class="fg">
+          <label>終了</label>
+          <input type="time" id="iEnd" disabled style="width:100px">
+        </div>
+        <div class="fg" style="justify-content:flex-end">
+          <button class="btn btn-primary" id="btnSubmit">登録</button>
+        </div>
+      </div>
+      <div class="form-err" id="formErr"></div>
+    </div>
+  </div>
+
+  <!-- 一覧 -->
+  <div class="card">
+    <div class="card-head">
+      <span class="card-title">取得記録</span>
+      <span id="recCount" style="font-size:11px;color:var(--text-muted)">0 件</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>日付</th>
+            <th>種別</th>
+            <th>開始</th>
+            <th>終了</th>
+            <th style="text-align:right">取得時間</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="recTbody"></tbody>
+      </table>
+      <div id="emptyMsg" class="empty">記録がありません</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">設定</span>
+      <button class="modal-close" id="btnModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg">
+        <label>付与総日数（日）</label>
+        <input type="number" id="sTotalDays" min="0" step="0.5" value="20" style="width:100%">
+      </div>
+      <div class="fg">
+        <label>終日あたりの時間（h）</label>
+        <input type="number" id="sPerDay" min="0.5" step="0.5" value="8" style="width:100%">
+      </div>
+      <div class="fg">
+        <label>取得期限</label>
+        <input type="date" id="sDeadlineInput" style="width:100%">
+      </div>
+      <div class="fg">
+        <label style="display:flex;align-items:center;gap:8px">
+          <input type="checkbox" id="sDeductLunch">
+          時間単位取得で昼休憩を自動控除する
+        </label>
+      </div>
+      <div class="form-row" style="margin-top:-4px">
+        <div class="fg" style="flex:1;min-width:120px">
+          <label>昼休憩 開始</label>
+          <input type="time" id="sLunchStart" value="12:00" style="width:100%">
+        </div>
+        <div class="fg" style="flex:1;min-width:120px">
+          <label>昼休憩 終了</label>
+          <input type="time" id="sLunchEnd" value="13:00" style="width:100%">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="btnModalCancel">キャンセル</button>
+      <button class="btn btn-primary" id="btnSaveSettings">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="Nenkyu.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    if (typeof init === 'function') init();
+  });
+</script>
+</body>
+</html>
