@@ -141,7 +141,7 @@ select {
 .btn-primary {
   color: #fdfaf5;
   background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
-  box-shadow: 0 6px 14px rgba(38, 29, 22, 0.12);
+  box-shadow: 0 3px 8px rgba(38, 29, 22, 0.22);
 }
 
 .btn-primary:hover {
