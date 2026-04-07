@@ -1,6 +1,5 @@
 :root {
   --bg: #f4efe6;
-  --bg-accent: linear-gradient(180deg, #fbf8f3 0%, #efe7da 100%);
   --surface: rgba(255, 252, 247, 0.92);
   --surface-strong: #fffdfa;
   --border: rgba(105, 84, 57, 0.18);
@@ -588,9 +587,6 @@ select {
 
 .history-wrap {
   padding: 0 18px 16px;
-}
-
-.history-wrap {
   --history-cols: minmax(9.5rem, 2.2fr) minmax(4.5rem, 1fr) minmax(5.5rem, 1fr) minmax(6.5rem, 1.2fr) minmax(9rem, 1.5fr);
 }
 
@@ -659,8 +655,7 @@ select {
 }
 
 .mono,
-.num,
-.history-meta {
+.num {
   font-family: var(--mono);
 }
 
@@ -713,7 +708,7 @@ select {
 }
 
 .history-note-row {
-  margin-top: 10px;
+  margin-top: 4px;
   padding-left: 0;
 }
 
@@ -1003,10 +998,6 @@ select {
     background: rgba(255, 255, 255, 0.72);
   }
 
-  .history-row:last-child {
-    margin-bottom: 0;
-  }
-
   .history-main {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
@@ -1047,10 +1038,6 @@ select {
     justify-self: stretch;
   }
 
-  .history-type {
-    justify-self: start;
-  }
-
   .history-time-range {
     justify-self: stretch;
     text-align: left;
@@ -1069,8 +1056,8 @@ select {
   }
 
   .history-note-row {
-    margin-top: 10px;
-    padding-top: 10px;
+    margin-top: 4px;
+    padding-top: 4px;
     border-top: 1px solid rgba(105, 84, 57, 0.08);
   }
 
