@@ -13,7 +13,7 @@
   --accent-soft-2: #c6e1d7;
   --warn: #c1781f;
   --danger: #bb4337;
-  --shadow: 0 22px 50px rgba(71, 53, 35, 0.12);
+  --shadow: 0 10px 24px rgba(71, 53, 35, 0.08);
   --radius-lg: 28px;
   --radius-md: 18px;
   --radius-sm: 12px;
@@ -31,10 +31,7 @@ body {
   min-height: 100vh;
   font-family: var(--sans);
   color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 34%),
-    radial-gradient(circle at top right, rgba(31, 106, 82, 0.09), transparent 24%),
-    var(--bg-accent);
+  background: var(--bg);
   line-height: 1.6;
 }
 
@@ -310,7 +307,7 @@ select {
   margin-top: 20px;
   padding: 18px 20px 20px;
   border-radius: var(--radius-md);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72) 0%, rgba(249, 244, 236, 0.9) 100%);
+  background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(105, 84, 57, 0.08);
 }
 
