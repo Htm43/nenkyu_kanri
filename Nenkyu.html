@@ -160,20 +160,15 @@
         </div>
         <span class="table-meta" id="recCount">0件</span>
       </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>日付</th>
-              <th>区分</th>
-              <th>開始</th>
-              <th>終了</th>
-              <th class="th-num">取得時間</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="recTbody"></tbody>
-        </table>
+      <div class="history-wrap">
+        <div class="history-head" aria-hidden="true">
+          <span>日付</span>
+          <span>区分</span>
+          <span>取得時間</span>
+          <span>時間帯</span>
+          <span class="history-head-actions">操作</span>
+        </div>
+        <div class="history-list" id="recTbody"></div>
         <div id="emptyMsg" class="empty">まだ記録はありません。</div>
       </div>
     </section>

@@ -56,7 +56,8 @@ function formatDate(dateString) {
   const date = new Date(`${dateString}T00:00:00`);
   if (Number.isNaN(date.getTime())) return dateString;
   return new Intl.DateTimeFormat("ja-JP", {
-    month: "short",
+    year: "numeric",
+    month: "2-digit",
     day: "numeric",
     weekday: "short"
   }).format(date);
@@ -285,7 +286,7 @@ function renderChart() {
 }
 
 function renderTable() {
-  const tbody = $("recTbody");
+  const list = $("recTbody");
   const empty = $("emptyMsg");
   const editingId = $("editId").value;
   const records = [...app.state.records].sort((a, b) => b.date.localeCompare(a.date));
@@ -293,40 +294,54 @@ function renderTable() {
   $("recCount").textContent = `${records.length}件`;
 
   if (!records.length) {
-    tbody.innerHTML = "";
+    list.innerHTML = "";
     empty.style.display = "block";
     return;
   }
 
   empty.style.display = "none";
-  tbody.innerHTML = records.map((record) => {
+  list.innerHTML = records.map((record) => {
     const badge = record.type === "full"
       ? '<span class="badge badge-full">全休</span>'
       : '<span class="badge badge-partial">時間休</span>';
+    const hours = `${formatHours(calcRecordHours(record))} h`;
+    const timeRange = record.type === "partial"
+      ? `${record.startTime ?? "-"} - ${record.endTime ?? "-"}`
+      : "終日";
 
     return `
-      <tr class="${record.id === editingId ? "is-editing-row" : ""}">
-        <td class="mono">
-          <div class="table-cell-date">
-            <span>${record.date}</span>
-            <small>${formatDate(record.date)}</small>
-            ${record.note ? `
-              <span class="note-indicator">
-                <button class="note-trigger" type="button" aria-label="メモを表示" title="${escapeHTML(record.note)}">メモ</button>
-                <span class="note-tooltip">${escapeHTML(record.note)}</span>
-              </span>
-            ` : ""}
+      <article class="history-row ${record.id === editingId ? "is-editing-row" : ""}">
+        <div class="history-main">
+          <div class="history-cell history-date mono">
+            <span class="history-label">日付</span>
+            <div class="table-cell-date">
+              <span>${formatDate(record.date)}</span>
+            </div>
           </div>
-        </td>
-        <td>${badge}</td>
-        <td class="mono">${record.startTime ?? "-"}</td>
-        <td class="mono">${record.endTime ?? "-"}</td>
-        <td class="num">${formatHours(calcRecordHours(record))} h</td>
-        <td class="ops">
-          <button class="btn btn-row btn-row-edit" data-action="edit" data-id="${record.id}">編集</button>
-          <button class="btn btn-row btn-row-del" data-action="delete" data-id="${record.id}">削除</button>
-        </td>
-      </tr>
+          <div class="history-cell history-type">
+            <span class="history-label">区分</span>
+            ${badge}
+          </div>
+          <div class="history-cell history-hours num">
+            <span class="history-label">取得時間</span>
+            <span>${hours}</span>
+          </div>
+          <div class="history-cell history-time-range mono">
+            <span class="history-label">時間帯</span>
+            <span>${timeRange}</span>
+          </div>
+          <div class="history-cell history-actions">
+            <button class="btn btn-row btn-row-edit" data-action="edit" data-id="${record.id}">編集</button>
+            <button class="btn btn-row btn-row-del" data-action="delete" data-id="${record.id}">削除</button>
+          </div>
+        </div>
+        ${record.note ? `
+          <div class="history-note-row">
+            <span class="history-note-label">メモ</span>
+            <p class="history-note-text">${escapeHTML(record.note)}</p>
+          </div>
+        ` : ""}
+      </article>
     `;
   }).join("");
 }

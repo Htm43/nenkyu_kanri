@@ -589,70 +589,159 @@ select {
   height: 18px;
 }
 
-.tbl-wrap {
-  overflow-x: auto;
+.history-wrap {
+  padding: 0 18px 16px;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
+.history-wrap {
+  --history-cols: minmax(9.5rem, 2.2fr) minmax(4.5rem, 1fr) minmax(5.5rem, 1fr) minmax(6.5rem, 1.2fr) minmax(9rem, 1.5fr);
 }
 
-thead th {
-  padding: 14px 24px;
-  text-align: left;
+.history-head,
+.history-main {
+  display: grid;
+  grid-template-columns: var(--history-cols);
+  align-items: center;
+  column-gap: 18px;
+}
+
+.history-head {
+  padding: 14px 6px 12px;
   border-bottom: 1px solid rgba(105, 84, 57, 0.1);
   color: var(--text-muted);
   font-size: 12px;
   font-weight: 700;
-  white-space: nowrap;
 }
 
-.th-num,
-td.num,
-td.ops {
+.history-head > span:nth-child(1) {
+  justify-self: start;
+  text-align: left;
+}
+
+.history-head > span:nth-child(2) {
+  justify-self: center;
+  text-align: center;
+}
+
+.history-head > span:nth-child(3) {
+  justify-self: center;
+  text-align: center;
+}
+
+.history-head > span:nth-child(4) {
+  justify-self: start;
+  text-align: left;
+}
+
+.history-head > span:nth-child(5) {
+  justify-self: end;
   text-align: right;
+  padding-right: 10px;
 }
 
-tbody td {
-  padding: 16px 24px;
+.history-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.history-row {
+  padding: 14px 6px 12px;
   border-bottom: 1px solid rgba(105, 84, 57, 0.08);
-  vertical-align: middle;
 }
 
-tbody tr:last-child td {
+.history-row:last-child {
   border-bottom: none;
 }
 
-tbody tr:hover td {
+.history-row:hover {
   background: rgba(31, 106, 82, 0.04);
 }
 
-tbody tr.is-editing-row td {
+.history-row.is-editing-row {
   background: rgba(31, 106, 82, 0.08);
 }
 
-td.mono,
-td.num {
+.mono,
+.num,
+.history-meta {
   font-family: var(--mono);
 }
 
 .table-cell-date {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
 }
 
-.table-cell-date small {
+.table-cell-date > span,
+.table-cell-date > small {
+  white-space: nowrap;
+}
+
+.history-cell {
+  min-width: 0;
+}
+
+.history-date {
+  justify-self: start;
+  text-align: left;
+}
+
+.history-type {
+  justify-self: center;
+  text-align: center;
+}
+
+.history-label {
+  display: none;
+}
+
+.history-hours {
+  justify-self: center;
+  text-align: center;
+}
+
+.history-time-range {
+  justify-self: start;
+  text-align: left;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.history-actions {
+  display: inline-flex;
+  justify-self: end;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.history-note-row {
+  margin-top: 10px;
+  padding-left: 0;
+}
+
+.history-note-label {
+  display: inline-block;
+  margin-right: 8px;
   color: var(--text-muted);
   font-size: 11px;
+}
+
+.history-note-text {
+  display: inline;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .note-indicator {
   position: relative;
   display: inline-flex;
   align-items: center;
-  margin-top: 8px;
+}
+
+.note-indicator-inline {
+  justify-self: start;
 }
 
 .note-trigger {
@@ -683,13 +772,18 @@ td.num {
   white-space: normal;
 }
 
+.note-tooltip-right {
+  left: auto;
+  right: 0;
+}
+
 .note-indicator:hover .note-tooltip,
 .note-indicator:focus-within .note-tooltip {
   display: block;
 }
 
-tbody tr:last-child .note-tooltip,
-tbody tr:nth-last-child(2) .note-tooltip {
+.history-row:last-child .note-tooltip,
+.history-row:nth-last-child(2) .note-tooltip {
   top: auto;
   bottom: calc(100% + 8px);
 }
@@ -702,6 +796,7 @@ tbody tr:nth-last-child(2) .note-tooltip {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .badge-full {
@@ -847,48 +942,23 @@ tbody tr:nth-last-child(2) .note-tooltip {
     align-items: stretch;
   }
 
-  thead th,
-  tbody td {
-    padding-inline: 12px;
+  .history-wrap {
+    padding: 0 12px 12px;
+    --history-cols: minmax(8rem, 2fr) minmax(4rem, 0.9fr) minmax(4.8rem, 1fr) minmax(5.6rem, 1.1fr) minmax(8rem, 1.35fr);
   }
 
-  table {
-    table-layout: fixed;
+  .history-head,
+  .history-main {
+    column-gap: 14px;
   }
 
-  thead th {
-    padding-block: 12px;
+  .history-row {
+    padding-inline: 2px;
   }
 
-  tbody td {
-    padding-block: 14px;
-  }
-
-  thead th:nth-child(1),
-  tbody td:nth-child(1) {
-    width: 20%;
-  }
-
-  thead th:nth-child(2),
-  tbody td:nth-child(2) {
-    width: 14%;
-  }
-
-  thead th:nth-child(3),
-  tbody td:nth-child(3),
-  thead th:nth-child(4),
-  tbody td:nth-child(4) {
-    width: 14%;
-  }
-
-  thead th:nth-child(5),
-  tbody td:nth-child(5) {
-    width: 18%;
-  }
-
-  thead th:nth-child(6),
-  tbody td:nth-child(6) {
-    width: 20%;
+  .history-head,
+  .history-main {
+    grid-template-columns: var(--history-cols);
   }
 
   .badge {
@@ -899,8 +969,17 @@ tbody tr:nth-last-child(2) .note-tooltip {
 
   .btn-row {
     min-height: 30px;
-    padding: 0 10px;
+    padding: 0 8px;
     font-size: 12px;
+  }
+
+  .note-trigger {
+    padding: 2px 7px;
+    font-size: 10px;
+  }
+
+  .history-actions {
+    gap: 6px;
   }
 }
 
@@ -913,5 +992,72 @@ tbody tr:nth-last-child(2) .note-tooltip {
 
   .sum-item {
     min-height: 112px;
+  }
+
+  .history-head {
+    display: none;
+  }
+
+  .history-row {
+    padding: 14px 4px;
+  }
+
+  .history-main {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "date hours"
+      "type actions"
+      "time time";
+    row-gap: 8px;
+    column-gap: 12px;
+    align-items: start;
+  }
+
+  .history-date { grid-area: date; }
+  .history-type { grid-area: type; }
+  .history-time-range { grid-area: time; }
+  .history-hours { grid-area: hours; text-align: right; }
+  .history-actions { grid-area: actions; justify-self: end; }
+
+  .history-label {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-family: var(--sans);
+  }
+
+  .history-date .history-label,
+  .history-type .history-label,
+  .history-time-range .history-label,
+  .history-hours .history-label {
+    margin-bottom: 2px;
+  }
+
+  .history-type {
+    justify-self: start;
+  }
+
+  .history-time-range {
+    font-size: 13px;
+  }
+
+  .history-note-row {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(105, 84, 57, 0.08);
+  }
+
+  .history-actions {
+    align-self: end;
+  }
+
+  .note-tooltip-right {
+    right: auto;
+    left: 0;
+  }
+
+  .history-actions {
+    gap: 6px;
   }
 }
