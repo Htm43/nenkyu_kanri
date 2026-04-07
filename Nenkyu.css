@@ -532,7 +532,8 @@ select {
 }
 
 .fg input,
-.fg select {
+.fg select,
+.fg textarea {
   width: 100%;
   min-height: 46px;
   padding: 0 14px;
@@ -543,7 +544,8 @@ select {
 }
 
 .fg input:focus,
-.fg select:focus {
+.fg select:focus,
+.fg textarea:focus {
   outline: none;
   border-color: rgba(31, 106, 82, 0.55);
   box-shadow: 0 0 0 4px rgba(31, 106, 82, 0.08);
@@ -554,8 +556,18 @@ select {
   color: rgba(38, 29, 22, 0.45);
 }
 
+.fg textarea {
+  min-height: 92px;
+  padding-block: 12px;
+  resize: vertical;
+}
+
 .fg-submit {
   justify-content: end;
+}
+
+.fg-note {
+  margin-top: 14px;
 }
 
 .form-err {
@@ -634,6 +646,46 @@ td.num {
 .table-cell-date small {
   color: var(--text-muted);
   font-size: 11px;
+}
+
+.note-indicator {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.note-trigger {
+  border: 1px solid rgba(31, 106, 82, 0.12);
+  border-radius: 999px;
+  background: rgba(31, 106, 82, 0.06);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  cursor: help;
+}
+
+.note-tooltip {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  z-index: 5;
+  display: none;
+  width: min(260px, 48vw);
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(38, 29, 22, 0.94);
+  color: #fff7ef;
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 12px 30px rgba(38, 29, 22, 0.22);
+  white-space: normal;
+}
+
+.note-indicator:hover .note-tooltip,
+.note-indicator:focus-within .note-tooltip {
+  display: block;
 }
 
 .badge {

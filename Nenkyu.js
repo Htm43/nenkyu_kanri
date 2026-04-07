@@ -142,7 +142,8 @@ function normalizeRecord(record) {
     date: record.date ?? todayStr(),
     type: record.type === "partial" ? "partial" : "full",
     startTime: record.startTime ?? null,
-    endTime: record.endTime ?? null
+    endTime: record.endTime ?? null,
+    note: record.note ?? record.memo ?? ""
   };
 }
 
@@ -309,6 +310,12 @@ function renderTable() {
           <div class="table-cell-date">
             <span>${record.date}</span>
             <small>${formatDate(record.date)}</small>
+            ${record.note ? `
+              <span class="note-indicator">
+                <button class="note-trigger" type="button" aria-label="メモを表示" title="${escapeHTML(record.note)}">メモ</button>
+                <span class="note-tooltip">${escapeHTML(record.note)}</span>
+              </span>
+            ` : ""}
           </div>
         </td>
         <td>${badge}</td>
@@ -355,6 +362,7 @@ function resetForm() {
   $("iType").value = "full";
   $("iStart").value = "";
   $("iEnd").value = "";
+  $("iNote").value = "";
   $("editBannerTitle").textContent = "編集中";
   $("editBannerText").textContent = "";
   syncTypeInputs();
@@ -401,7 +409,8 @@ function getFormData() {
     date: $("iDate").value,
     type,
     startTime: type === "partial" ? $("iStart").value : null,
-    endTime: type === "partial" ? $("iEnd").value : null
+    endTime: type === "partial" ? $("iEnd").value : null,
+    note: $("iNote").value.trim()
   };
 }
 
@@ -436,6 +445,7 @@ function startEdit(id) {
   $("iType").value = record.type;
   $("iStart").value = record.startTime ?? "";
   $("iEnd").value = record.endTime ?? "";
+  $("iNote").value = record.note ?? "";
   $("editBannerTitle").textContent = "この記録を編集中";
   $("editBannerText").textContent = `${record.date} / ${record.type === "full" ? "全休" : "時間休"} を更新できます`;
   syncTypeInputs();
@@ -717,4 +727,13 @@ async function init() {
   resetForm();
   bindEvents();
   await tryAutoRestoreOnLaunch();
+}
+
+function escapeHTML(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
