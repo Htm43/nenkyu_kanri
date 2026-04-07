@@ -688,6 +688,12 @@ td.num {
   display: block;
 }
 
+tbody tr:last-child .note-tooltip,
+tbody tr:nth-last-child(2) .note-tooltip {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
