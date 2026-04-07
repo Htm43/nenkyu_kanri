@@ -58,7 +58,7 @@ function formatDate(dateString) {
   return new Intl.DateTimeFormat("ja-JP", {
     year: "numeric",
     month: "2-digit",
-    day: "numeric",
+    day: "2-digit",
     weekday: "short"
   }).format(date);
 }

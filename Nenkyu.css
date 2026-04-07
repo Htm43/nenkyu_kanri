@@ -626,8 +626,8 @@ select {
 }
 
 .history-head > span:nth-child(4) {
-  justify-self: start;
-  text-align: left;
+  justify-self: center;
+  text-align: center;
 }
 
 .history-head > span:nth-child(5) {
@@ -698,8 +698,8 @@ select {
 }
 
 .history-time-range {
-  justify-self: start;
-  text-align: left;
+  justify-self: center;
+  text-align: center;
   color: var(--text-muted);
   font-size: 12px;
 }
@@ -996,39 +996,55 @@ select {
   }
 
   .history-row {
-    padding: 14px 4px;
+    padding: 14px 12px;
+    margin-top: 4px;
+    border: 1px solid rgba(105, 84, 57, 0.08);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.72);
+  }
+
+  .history-row:last-child {
+    margin-bottom: 0;
   }
 
   .history-main {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      "date hours"
-      "type actions"
-      "time time";
-    row-gap: 8px;
-    column-gap: 12px;
+      "date"
+      "type"
+      "time"
+      "hours"
+      "actions";
+    row-gap: 10px;
     align-items: start;
   }
 
   .history-date { grid-area: date; }
   .history-type { grid-area: type; }
   .history-time-range { grid-area: time; }
-  .history-hours { grid-area: hours; text-align: right; }
-  .history-actions { grid-area: actions; justify-self: end; }
+  .history-hours { grid-area: hours; text-align: left; }
+  .history-actions { grid-area: actions; justify-self: start; }
 
   .history-label {
     display: block;
-    margin-bottom: 4px;
+    width: 4.75rem;
+    margin-bottom: 0;
+    margin-right: 0;
     color: var(--text-muted);
     font-size: 11px;
     font-family: var(--sans);
+    text-align: left;
   }
 
-  .history-date .history-label,
-  .history-type .history-label,
-  .history-time-range .history-label,
-  .history-hours .history-label {
-    margin-bottom: 2px;
+  .history-date,
+  .history-type,
+  .history-time-range,
+  .history-hours {
+    display: grid;
+    grid-template-columns: 4.75rem minmax(0, 1fr);
+    align-items: baseline;
+    column-gap: 8px;
+    justify-self: stretch;
   }
 
   .history-type {
@@ -1036,7 +1052,20 @@ select {
   }
 
   .history-time-range {
+    justify-self: stretch;
+    text-align: left;
     font-size: 13px;
+  }
+
+  .history-date .table-cell-date,
+  .history-type .badge,
+  .history-time-range > span:last-child,
+  .history-hours > span:last-child {
+    justify-self: start;
+  }
+
+  .history-hours {
+    text-align: left;
   }
 
   .history-note-row {
@@ -1046,15 +1075,8 @@ select {
   }
 
   .history-actions {
-    align-self: end;
-  }
-
-  .note-tooltip-right {
-    right: auto;
-    left: 0;
-  }
-
-  .history-actions {
     gap: 6px;
+    align-self: start;
+    justify-self: end;
   }
 }
