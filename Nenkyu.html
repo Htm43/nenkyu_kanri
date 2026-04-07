@@ -1,194 +1,226 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>年次有給休暇 取得管理</title>
-<link rel="stylesheet" href="Nenkyu.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>年休管理ノート</title>
+  <link rel="stylesheet" href="Nenkyu.css">
 </head>
 <body>
-
-<!-- Header -->
-<div class="header">
-  <div class="header-left">
-    <span class="header-title">年次有給休暇 取得管理</span>
-    <span class="file-badge" id="fileBadge">ファイル未選択</span>
-  </div>
-  <div class="header-right">
-    <button class="btn btn-hdr" id="btnOpen">開く</button>
-    <button class="btn btn-hdr" id="btnNew">新規作成</button>
-    <button class="btn btn-hdr" id="btnRestore" style="display:none">前回ファイル復元</button>
-    <div class="sep"></div>
-    <button class="btn btn-icon" id="btnSettings" title="設定" disabled>⚙</button>
-  </div>
-</div>
-
-<div class="no-file-screen" id="noFileScreen">
-  <h2>最初に保存先ファイルを作成してください</h2>
-  <p>初回は「新規作成」で JSON を作成します。2回目以降は前回ファイルを自動復元します。</p>
-  <div class="actions">
-    <button class="btn btn-primary" id="btnOpenStart">開く</button>
-    <button class="btn btn-primary" id="btnNewStart">新規作成</button>
-  </div>
-  <div class="restore-inline" id="restoreHint" style="display:none">
-    前回ファイル: <span id="restoreName"></span>
-  </div>
-</div>
-
-<!-- Main -->
-<div class="main" id="mainContent" style="display:none">
-
-  <!-- 集計 -->
-  <div>
-    <div class="summary">
-      <div class="sum-item">
-        <div class="sum-label">累計取得時間</div>
-        <div class="sum-val" id="sAcquired">0<span class="sum-unit">h</span></div>
+  <header class="header">
+    <div class="header-left">
+      <div>
+        <p class="eyebrow">Paid Leave Tracker</p>
+        <h1 class="header-title">年休管理ノート</h1>
       </div>
-      <div class="sum-item">
-        <div class="sum-label">残り時間</div>
-        <div class="sum-val" id="sRemaining">—</div>
+      <span class="file-badge" id="fileBadge">ファイル未選択</span>
+    </div>
+    <div class="header-right" id="headerActions">
+      <button class="btn btn-hdr" id="btnOpen">開く</button>
+      <button class="btn btn-hdr" id="btnNew">新規作成</button>
+      <button class="btn btn-hdr" id="btnRestore" style="display:none">前回のファイルを復元</button>
+      <div class="sep"></div>
+      <button class="btn btn-icon" id="btnSettings" title="設定" disabled>設定</button>
+    </div>
+  </header>
+
+  <section class="no-file-screen" id="noFileScreen">
+    <div class="empty-hero">
+      <p class="eyebrow">Ready to start</p>
+      <h2>まずは年休データのファイルを選びましょう</h2>
+      <p>
+        JSON ファイルを開くと、その内容をこの画面で編集できます。
+        新しく始める場合は新規作成、前回の続きがあれば復元も使えます。
+      </p>
+      <div class="actions">
+        <button class="btn btn-primary" id="btnOpenStart">ファイルを開く</button>
+        <button class="btn btn-secondary btn-big" id="btnNewStart">新規作成</button>
+        <button class="btn btn-secondary" id="btnRestoreStart" style="display:none">前回のデータを復元</button>
       </div>
-      <div class="sum-item">
-        <div class="sum-label">取得可能残日数</div>
-        <div class="sum-val" id="sDays">—</div>
-      </div>
-      <div class="sum-item">
-        <div class="sum-label">期限まで</div>
-        <div class="sum-val" id="sDeadline">—</div>
+      <div class="restore-inline" id="restoreHint" style="display:none">
+        復元候補: <span id="restoreName"></span>
       </div>
     </div>
-    <div class="gauge-wrap">
-      <div class="gauge-bar">
-        <div class="gauge-taken" id="gaugeTaken">
-          <span class="gauge-lbl" id="gaugeTakenLbl"></span>
+  </section>
+
+  <main class="main" id="mainContent" style="display:none">
+    <section class="hero-card">
+      <div class="hero-copy">
+        <p class="eyebrow">Overview</p>
+        <h2>年休の利用状況サマリー</h2>
+        <p>
+          付与日数、残り時間、使える日数、期限までの残り日数をまとめて見られます。
+        </p>
+      </div>
+
+      <div class="summary">
+        <div class="sum-item">
+          <div class="sum-label">取得済み</div>
+          <div class="sum-val" id="sAcquired">0<span class="sum-unit">h</span></div>
         </div>
-        <div class="gauge-rest">
-          <span class="gauge-lbl gauge-lbl-rest" id="gaugeRestLbl"></span>
+        <div class="sum-item">
+          <div class="sum-label">残り時間</div>
+          <div class="sum-val" id="sRemaining">-</div>
+        </div>
+        <div class="sum-item">
+          <div class="sum-label">残り日数</div>
+          <div class="sum-val" id="sDays">-</div>
+        </div>
+        <div class="sum-item">
+          <div class="sum-label">期限まで</div>
+          <div class="sum-val" id="sDeadline">-</div>
         </div>
       </div>
-    </div>
-  </div>
 
-  <!-- 月別グラフ -->
-  <div class="card">
-    <div class="card-head"><span class="card-title">月別取得状況</span></div>
-    <div class="card-body" style="padding:12px 18px 10px">
-      <div class="month-chart" id="monthChart"></div>
-    </div>
-  </div>
+      <div class="gauge-panel">
+        <div class="section-meta">
+          <span class="section-title">消化状況</span>
+          <span class="section-note" id="gaugeMeta">年間付与に対する利用率</span>
+        </div>
+        <div class="gauge-wrap">
+          <div class="gauge-bar" aria-label="年休消化率">
+            <div class="gauge-taken" id="gaugeTaken">
+              <span class="gauge-lbl" id="gaugeTakenLbl"></span>
+            </div>
+            <div class="gauge-rest">
+              <span class="gauge-lbl gauge-lbl-rest" id="gaugeRestLbl"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-  <!-- 登録フォーム -->
-  <div class="card" id="formCard">
-    <div class="card-head">
-      <span class="card-title" id="formTitle">新規登録</span>
-      <button class="btn btn-secondary" id="btnCancel" style="display:none;font-size:12px;padding:4px 10px">キャンセル</button>
-    </div>
-    <div class="card-body">
-      <input type="hidden" id="editId">
-      <div class="form-row">
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Monthly Activity</p>
+          <span class="card-title">月別の取得時間</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="month-chart" id="monthChart"></div>
+      </div>
+    </section>
+
+    <section class="card" id="formCard">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Record Entry</p>
+          <span class="card-title" id="formTitle">新しい記録を追加</span>
+        </div>
+        <button class="btn btn-secondary" id="btnCancel" style="display:none">キャンセル</button>
+      </div>
+      <div class="card-body">
+        <div class="edit-banner" id="editBanner" style="display:none">
+          <div>
+            <strong id="editBannerTitle">編集中</strong>
+            <span id="editBannerText"></span>
+          </div>
+          <button class="btn btn-secondary" id="btnCancelBanner">編集をやめる</button>
+        </div>
+        <input type="hidden" id="editId">
+        <div class="form-grid">
+          <div class="fg">
+            <label for="iDate">取得日</label>
+            <input type="date" id="iDate">
+          </div>
+          <div class="fg">
+            <label for="iType">区分</label>
+            <select id="iType">
+              <option value="full">全休</option>
+              <option value="partial">時間休</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label for="iStart">開始</label>
+            <input type="time" id="iStart" disabled>
+          </div>
+          <div class="fg">
+            <label for="iEnd">終了</label>
+            <input type="time" id="iEnd" disabled>
+          </div>
+          <div class="fg fg-submit">
+            <button class="btn btn-primary" id="btnSubmit">追加する</button>
+          </div>
+        </div>
+        <div class="hint" id="formHint">時間休を選ぶと開始・終了時間を入力できます。</div>
+        <div class="form-err" id="formErr" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">History</p>
+          <span class="card-title">取得履歴</span>
+        </div>
+        <span class="table-meta" id="recCount">0件</span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>区分</th>
+              <th>開始</th>
+              <th>終了</th>
+              <th class="th-num">取得時間</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="recTbody"></tbody>
+        </table>
+        <div id="emptyMsg" class="empty">まだ記録はありません。</div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal-head">
+        <span class="modal-title" id="settingsTitle">設定</span>
+        <button class="modal-close" id="btnModalClose" aria-label="閉じる">×</button>
+      </div>
+      <div class="modal-body">
         <div class="fg">
-          <label>取得日</label>
-          <input type="date" id="iDate" style="width:150px">
+          <label for="sTotalDays">年間付与日数</label>
+          <input type="number" id="sTotalDays" min="0" step="0.5">
         </div>
         <div class="fg">
-          <label>種別</label>
-          <select id="iType" style="width:100px">
-            <option value="full">終日</option>
-            <option value="partial">時間単位</option>
-          </select>
+          <label for="sPerDay">1日あたりの時間</label>
+          <input type="number" id="sPerDay" min="0.5" step="0.5">
         </div>
         <div class="fg">
-          <label>開始</label>
-          <input type="time" id="iStart" disabled style="width:100px">
+          <label for="sDeadlineInput">有効期限</label>
+          <input type="date" id="sDeadlineInput">
         </div>
-        <div class="fg">
-          <label>終了</label>
-          <input type="time" id="iEnd" disabled style="width:100px">
-        </div>
-        <div class="fg" style="justify-content:flex-end">
-          <button class="btn btn-primary" id="btnSubmit">登録</button>
-        </div>
-      </div>
-      <div class="form-err" id="formErr"></div>
-    </div>
-  </div>
-
-  <!-- 一覧 -->
-  <div class="card">
-    <div class="card-head">
-      <span class="card-title">取得記録</span>
-      <span id="recCount" style="font-size:11px;color:var(--text-muted)">0 件</span>
-    </div>
-    <div class="tbl-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>日付</th>
-            <th>種別</th>
-            <th>開始</th>
-            <th>終了</th>
-            <th style="text-align:right">取得時間</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="recTbody"></tbody>
-      </table>
-      <div id="emptyMsg" class="empty">記録がありません</div>
-    </div>
-  </div>
-
-</div>
-
-<!-- Settings Modal -->
-<div class="modal-overlay" id="modalOverlay">
-  <div class="modal">
-    <div class="modal-head">
-      <span class="modal-title">設定</span>
-      <button class="modal-close" id="btnModalClose">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="fg">
-        <label>付与総日数（日）</label>
-        <input type="number" id="sTotalDays" min="0" step="0.5" value="20" style="width:100%">
-      </div>
-      <div class="fg">
-        <label>終日あたりの時間（h）</label>
-        <input type="number" id="sPerDay" min="0.5" step="0.5" value="8" style="width:100%">
-      </div>
-      <div class="fg">
-        <label>取得期限</label>
-        <input type="date" id="sDeadlineInput" style="width:100%">
-      </div>
-      <div class="fg">
-        <label style="display:flex;align-items:center;gap:8px">
+        <label class="check-row">
           <input type="checkbox" id="sDeductLunch">
-          時間単位取得で昼休憩を自動控除する
+          <span>時間休の計算で昼休憩を差し引く</span>
         </label>
-      </div>
-      <div class="form-row" style="margin-top:-4px">
-        <div class="fg" style="flex:1;min-width:120px">
-          <label>昼休憩 開始</label>
-          <input type="time" id="sLunchStart" value="12:00" style="width:100%">
+        <div class="form-grid form-grid-compact">
+          <div class="fg">
+            <label for="sLunchStart">昼休憩 開始</label>
+            <input type="time" id="sLunchStart" value="12:00">
+          </div>
+          <div class="fg">
+            <label for="sLunchEnd">昼休憩 終了</label>
+            <input type="time" id="sLunchEnd" value="13:00">
+          </div>
         </div>
-        <div class="fg" style="flex:1;min-width:120px">
-          <label>昼休憩 終了</label>
-          <input type="time" id="sLunchEnd" value="13:00" style="width:100%">
-        </div>
       </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" id="btnModalCancel">キャンセル</button>
-      <button class="btn btn-primary" id="btnSaveSettings">保存</button>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnModalCancel">キャンセル</button>
+        <button class="btn btn-primary" id="btnSaveSettings">保存</button>
+      </div>
     </div>
   </div>
-</div>
 
-<script src="Nenkyu.js"></script>
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    if (typeof init === 'function') init();
-  });
-</script>
+  <script src="Nenkyu.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      if (typeof init === "function") init();
+    });
+  </script>
 </body>
 </html>

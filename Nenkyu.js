@@ -1,33 +1,69 @@
 const $ = (id) => document.getElementById(id);
 
-let state = {
-  settings: {
-    totalDays: 20,
-    hoursPerDay: 8,
-    deadline: "",
-    deductLunchBreak: false,
-    lunchStart: "12:00",
-    lunchEnd: "13:00"
-  },
-  records: []
-};
-
-let fileHandle = null;
-let persistQueue = Promise.resolve();
+const DEFAULT_SETTINGS = Object.freeze({
+  totalDays: 20,
+  hoursPerDay: 8,
+  deadline: "",
+  deductLunchBreak: false,
+  lunchStart: "12:00",
+  lunchEnd: "13:00"
+});
 
 const DB_NAME = "nenkyu_manager";
 const DB_STORE = "handles";
 const DB_KEY = "lastFile";
+const FILE_TYPE_OPTIONS = [
+  {
+    description: "JSON",
+    accept: { "application/json": [".json"] }
+  }
+];
+const DATA_VERSION = 2;
 
-function calcTotalHours() {
-  return state.settings.totalDays * state.settings.hoursPerDay;
+const app = {
+  state: createDefaultState(),
+  fileHandle: null,
+  persistQueue: Promise.resolve()
+};
+
+function createDefaultState() {
+  return {
+    settings: { ...DEFAULT_SETTINGS },
+    records: []
+  };
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function toMinutes(hhmm) {
   if (!hhmm || !hhmm.includes(":")) return null;
-  const [h, m] = hhmm.split(":").map(Number);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-  return h * 60 + m;
+  const [hour, minute] = hhmm.split(":").map(Number);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  return hour * 60 + minute;
+}
+
+function formatHours(hours) {
+  const rounded = Math.round(hours * 100) / 100;
+  return Number.isInteger(rounded)
+    ? String(rounded)
+    : rounded.toFixed(2).replace(/\.?0+$/, "");
+}
+
+function formatDate(dateString) {
+  if (!dateString) return "-";
+  const date = new Date(`${dateString}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return dateString;
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "short",
+    day: "numeric",
+    weekday: "short"
+  }).format(date);
+}
+
+function getTotalHours() {
+  return app.state.settings.totalDays * app.state.settings.hoursPerDay;
 }
 
 function calcPartialHours(startTime, endTime) {
@@ -35,368 +71,394 @@ function calcPartialHours(startTime, endTime) {
   const end = toMinutes(endTime);
   if (start === null || end === null || end <= start) return 0;
 
-  let diffMin = end - start;
-  if (state.settings.deductLunchBreak) {
-    const lunchStart = toMinutes(state.settings.lunchStart);
-    const lunchEnd = toMinutes(state.settings.lunchEnd);
+  let diff = end - start;
+  if (app.state.settings.deductLunchBreak) {
+    const lunchStart = toMinutes(app.state.settings.lunchStart);
+    const lunchEnd = toMinutes(app.state.settings.lunchEnd);
     if (lunchStart !== null && lunchEnd !== null && lunchEnd > lunchStart) {
       const overlap = Math.max(0, Math.min(end, lunchEnd) - Math.max(start, lunchStart));
-      diffMin -= overlap;
+      diff -= overlap;
     }
   }
 
-  return Math.max(0, diffMin) / 60;
+  return Math.max(diff, 0) / 60;
 }
 
-function calcHours(record) {
-  if (record.type === "full") return state.settings.hoursPerDay;
+function calcRecordHours(record) {
+  if (record.type === "full") return app.state.settings.hoursPerDay;
   return calcPartialHours(record.startTime, record.endTime);
 }
 
-function sumAcquired() {
-  return state.records.reduce((sum, record) => sum + calcHours(record), 0);
+function getAcquiredHours() {
+  return app.state.records.reduce((total, record) => total + calcRecordHours(record), 0);
 }
 
-function fmtH(hours) {
-  const rounded = Math.round(hours * 100) / 100;
-  return Number.isInteger(rounded)
-    ? String(rounded)
-    : rounded.toFixed(2).replace(/\.?0+$/, "");
-}
+function getRemainingInfo() {
+  const acquired = getAcquiredHours();
+  const total = getTotalHours();
+  const remaining = total - acquired;
+  const hoursPerDay = app.state.settings.hoursPerDay;
+  const remainingDays = hoursPerDay > 0 ? remaining / hoursPerDay : null;
+  const usageRate = total > 0 ? Math.min(acquired / total, 1) : 0;
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function toJSON() {
-  return JSON.stringify({ settings: state.settings, records: state.records }, null, 2);
-}
-
-function fromJSON(text) {
-  const parsed = JSON.parse(text);
-  if (!parsed.settings || !Array.isArray(parsed.records)) {
-    throw new Error("データ形式が不正です。");
-  }
-
-  state.settings = {
-    totalDays: Number(parsed.settings.totalDays ?? 20),
-    hoursPerDay: Number(parsed.settings.hoursPerDay ?? 8),
-    deadline: parsed.settings.deadline ?? "",
-    deductLunchBreak: Boolean(parsed.settings.deductLunchBreak ?? false),
-    lunchStart: parsed.settings.lunchStart ?? "12:00",
-    lunchEnd: parsed.settings.lunchEnd ?? "13:00"
+  return {
+    acquired,
+    total,
+    remaining,
+    remainingDays,
+    usageRate
   };
+}
 
-  if (parsed.settings.totalDays === undefined && parsed.settings.totalHours !== undefined) {
-    const safePerDay = state.settings.hoursPerDay > 0 ? state.settings.hoursPerDay : 8;
-    state.settings.totalDays = Number(parsed.settings.totalHours) / safePerDay;
+function createPayload() {
+  return JSON.stringify({
+    version: DATA_VERSION,
+    settings: app.state.settings,
+    entries: app.state.records
+  }, null, 2);
+}
+
+function normalizeSettings(rawSettings = {}) {
+  const safeHoursPerDay = Number(rawSettings.hoursPerDay ?? DEFAULT_SETTINGS.hoursPerDay) || DEFAULT_SETTINGS.hoursPerDay;
+  let totalDays = Number(rawSettings.totalDays ?? DEFAULT_SETTINGS.totalDays);
+
+  if (rawSettings.totalDays === undefined && rawSettings.totalHours !== undefined) {
+    totalDays = Number(rawSettings.totalHours) / safeHoursPerDay;
   }
 
-  state.records = parsed.records.map((r) => ({
-    id: r.id ?? crypto.randomUUID(),
-    date: r.date,
-    type: r.type,
-    startTime: r.startTime ?? null,
-    endTime: r.endTime ?? null
-  }));
+  return {
+    totalDays: Number.isFinite(totalDays) ? totalDays : DEFAULT_SETTINGS.totalDays,
+    hoursPerDay: safeHoursPerDay,
+    deadline: rawSettings.deadline ?? DEFAULT_SETTINGS.deadline,
+    deductLunchBreak: Boolean(rawSettings.deductLunchBreak ?? DEFAULT_SETTINGS.deductLunchBreak),
+    lunchStart: rawSettings.lunchStart ?? DEFAULT_SETTINGS.lunchStart,
+    lunchEnd: rawSettings.lunchEnd ?? DEFAULT_SETTINGS.lunchEnd
+  };
+}
+
+function normalizeRecord(record) {
+  return {
+    id: record.id ?? crypto.randomUUID(),
+    date: record.date ?? todayStr(),
+    type: record.type === "partial" ? "partial" : "full",
+    startTime: record.startTime ?? null,
+    endTime: record.endTime ?? null
+  };
+}
+
+function loadStateFromJSON(text) {
+  const parsed = JSON.parse(text);
+  const sourceRecords = Array.isArray(parsed?.entries)
+    ? parsed.entries
+    : Array.isArray(parsed?.records)
+      ? parsed.records
+      : null;
+
+  if (!parsed || !sourceRecords) {
+    throw new Error("JSON の形式が正しくありません。");
+  }
+
+  app.state = {
+    settings: normalizeSettings(parsed.settings),
+    records: sourceRecords.map(normalizeRecord)
+  };
 }
 
 function render() {
   renderSummary();
-  renderTable();
   renderChart();
+  renderTable();
+}
+
+function setValueWithClass(element, html, extraClass = "") {
+  element.innerHTML = html;
+  element.className = `sum-val${extraClass ? ` ${extraClass}` : ""}`;
 }
 
 function renderSummary() {
-  const acquired = sumAcquired();
-  const total = calcTotalHours();
-  const perDay = state.settings.hoursPerDay;
-  const remaining = total - acquired;
-  const days = perDay > 0 && total > 0 ? remaining / perDay : null;
-  const ratio = total > 0 ? Math.min(acquired / total, 1) : 0;
+  const { acquired, total, remaining, remainingDays, usageRate } = getRemainingInfo();
+  const hoursPerDay = app.state.settings.hoursPerDay;
+  const deadline = app.state.settings.deadline;
+  const deadlineDiff = deadline
+    ? Math.ceil((new Date(`${deadline}T00:00:00`) - new Date(`${todayStr()}T00:00:00`)) / 86400000)
+    : null;
 
-  $("sAcquired").innerHTML = `${fmtH(acquired)}<span class="sum-unit">h</span>`;
+  setValueWithClass($("sAcquired"), `${formatHours(acquired)}<span class="sum-unit">h</span>`);
 
-  const remainingEl = $("sRemaining");
   if (total > 0) {
-    remainingEl.innerHTML = `${fmtH(remaining)}<span class="sum-unit">h</span>`;
-    remainingEl.className = `sum-val${remaining < 0 ? " is-danger" : remaining < perDay ? " is-warn" : ""}`;
+    const remainingClass = remaining < 0 ? "is-danger" : remaining < hoursPerDay ? "is-warn" : "";
+    setValueWithClass($("sRemaining"), `${formatHours(remaining)}<span class="sum-unit">h</span>`, remainingClass);
   } else {
-    remainingEl.textContent = "-";
-    remainingEl.className = "sum-val";
+    setValueWithClass($("sRemaining"), "-");
   }
 
-  const dayEl = $("sDays");
-  if (days !== null) {
-    dayEl.innerHTML = `${fmtH(days)}<span class="sum-unit">日</span>`;
-    dayEl.className = `sum-val${days < 0 ? " is-danger" : days < 1 ? " is-warn" : ""}`;
+  if (remainingDays !== null) {
+    const dayClass = remainingDays < 0 ? "is-danger" : remainingDays < 1 ? "is-warn" : "";
+    setValueWithClass($("sDays"), `${formatHours(remainingDays)}<span class="sum-unit">日</span>`, dayClass);
   } else {
-    dayEl.textContent = "-";
-    dayEl.className = "sum-val";
+    setValueWithClass($("sDays"), "-");
   }
 
-  const deadlineEl = $("sDeadline");
-  const deadline = state.settings.deadline;
-  if (deadline) {
-    const diff = Math.ceil((new Date(deadline) - new Date(todayStr())) / 86400000);
-    deadlineEl.innerHTML = `${diff}<span class="sum-unit">日</span>`;
-    deadlineEl.className = `sum-val${diff < 0 ? " is-danger" : diff < 14 ? " is-warn" : ""}`;
+  if (deadlineDiff !== null) {
+    const deadlineClass = deadlineDiff < 0 ? "is-danger" : deadlineDiff < 14 ? "is-warn" : "";
+    setValueWithClass($("sDeadline"), `${deadlineDiff}<span class="sum-unit">日</span>`, deadlineClass);
   } else {
-    deadlineEl.textContent = "-";
-    deadlineEl.className = "sum-val";
+    setValueWithClass($("sDeadline"), "-");
   }
 
-  const takenEl = $("gaugeTaken");
-  const takenLbl = $("gaugeTakenLbl");
-  const restLbl  = $("gaugeRestLbl");
-  const pct = ratio * 100;
-  takenEl.style.width = `${pct}%`;
-  takenEl.className = `gauge-taken${ratio >= 1 ? " is-danger" : ratio >= 0.8 ? " is-warn" : ""}`;
-  takenLbl.textContent = pct > 20 ? `${fmtH(acquired)}h 取得済` : "";
-  restLbl.textContent  = total > 0 && pct < 88 ? `残 ${fmtH(remaining)}h` : "";
+  renderGauge({ acquired, total, remaining, usageRate });
+}
+
+function renderGauge({ acquired, total, remaining, usageRate }) {
+  const taken = $("gaugeTaken");
+  const takenLabel = $("gaugeTakenLbl");
+  const restLabel = $("gaugeRestLbl");
+  const meta = $("gaugeMeta");
+  const percent = total > 0 ? Math.round(usageRate * 100) : 0;
+
+  taken.style.width = `${percent}%`;
+  taken.className = `gauge-taken${usageRate >= 1 ? " is-danger" : usageRate >= 0.8 ? " is-warn" : ""}`;
+  takenLabel.textContent = percent > 12 ? `${formatHours(acquired)}h 消化済み` : "";
+  restLabel.textContent = total > 0 ? `残り ${formatHours(remaining)}h` : "付与日数を設定してください";
+  meta.textContent = total > 0 ? `${percent}% 使用中 / 合計 ${formatHours(total)}h` : "年間付与を設定すると表示されます";
+}
+
+function buildMonthBuckets() {
+  const records = [...app.state.records].sort((a, b) => a.date.localeCompare(b.date));
+  if (!records.length) return [];
+
+  const totalsByMonth = {};
+  for (const record of records) {
+    const month = record.date.slice(0, 7);
+    totalsByMonth[month] = (totalsByMonth[month] || 0) + calcRecordHours(record);
+  }
+
+  const currentMonth = todayStr().slice(0, 7);
+  const startMonth = records[0].date.slice(0, 7);
+  const deadlineMonth = app.state.settings.deadline ? app.state.settings.deadline.slice(0, 7) : currentMonth;
+  const endMonth = deadlineMonth > currentMonth ? deadlineMonth : currentMonth;
+
+  const months = [];
+  let cursor = startMonth;
+  while (cursor <= endMonth) {
+    months.push({
+      ym: cursor,
+      value: totalsByMonth[cursor] || 0,
+      isCurrent: cursor === currentMonth
+    });
+
+    const [year, month] = cursor.split("-").map(Number);
+    cursor = month === 12
+      ? `${year + 1}-01`
+      : `${year}-${String(month + 1).padStart(2, "0")}`;
+  }
+
+  return months;
 }
 
 function renderChart() {
-  const chartEl = $("monthChart");
-  if (!state.records.length) {
-    chartEl.innerHTML = '<div class="mc-empty">記録がありません</div>';
+  const chart = $("monthChart");
+  const buckets = buildMonthBuckets();
+  if (!buckets.length) {
+    chart.innerHTML = '<div class="mc-empty">まだ記録はありません。</div>';
     return;
   }
 
-  // 月別集計
-  const byMonth = {};
-  for (const rec of state.records) {
-    const ym = rec.date.slice(0, 7);
-    byMonth[ym] = (byMonth[ym] || 0) + calcHours(rec);
-  }
+  const maxValue = Math.max(...buckets.map((bucket) => bucket.value), 0.001);
 
-  // 表示範囲：最初の記録月 〜 期限月 or 当月（遅いほう）
-  const today = todayStr();
-  const currentYM = today.slice(0, 7);
-  const deadline = state.settings.deadline;
-  const dataMonths = Object.keys(byMonth).sort();
-  const startYM = dataMonths[0];
-  const endYM = deadline
-    ? [deadline.slice(0, 7), currentYM].sort().reverse()[0]
-    : currentYM;
+  chart.innerHTML = buckets.map((bucket) => {
+    const height = bucket.value > 0 ? Math.max(8, Math.round((bucket.value / maxValue) * 116)) : 8;
+    const label = `${Number(bucket.ym.slice(5))}月`;
+    const barClass = `mc-bar${bucket.isCurrent ? " mc-current" : bucket.value > 0 ? " mc-data" : ""}`;
+    const valueClass = `mc-val${bucket.isCurrent ? " mc-current" : ""}`;
+    const monthClass = `mc-month${bucket.isCurrent ? " mc-current" : ""}`;
 
-  const allMonths = [];
-  let cur = startYM;
-  while (cur <= endYM) {
-    allMonths.push(cur);
-    const [y, m] = cur.split("-").map(Number);
-    cur = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
-  }
-
-  const BAR_MAX_PX = 56;
-  const maxH = Math.max(...allMonths.map(m => byMonth[m] || 0), 0.001);
-
-  chartEl.innerHTML = allMonths.map(ym => {
-    const h = byMonth[ym] || 0;
-    const barH = h > 0 ? Math.max(3, Math.round((h / maxH) * BAR_MAX_PX)) : 2;
-    const mo = ym.slice(5).replace(/^0/, "") + "月";
-    const isCurrent = ym === currentYM;
-    const barCls   = "mc-bar" + (isCurrent ? " mc-current" : h > 0 ? " mc-data" : "");
-    const valCls   = "mc-val"   + (isCurrent ? " mc-current" : "");
-    const monthCls = "mc-month" + (isCurrent ? " mc-current" : "");
-    return `<div class="mc-col">${h > 0 ? `<span class="${valCls}">${fmtH(h)}h</span>` : ""}
-      <div class="${barCls}" style="height:${barH}px"></div>
-      <div class="${monthCls}">${mo}</div></div>`;
+    return `
+      <div class="mc-col">
+        ${bucket.value > 0 ? `<span class="${valueClass}">${formatHours(bucket.value)}h</span>` : ""}
+        <div class="${barClass}" style="height:${height}px"></div>
+        <div class="${monthClass}">${label}</div>
+      </div>
+    `;
   }).join("");
 }
 
 function renderTable() {
   const tbody = $("recTbody");
   const empty = $("emptyMsg");
-  const countEl = $("recCount");
   const editingId = $("editId").value;
-  const sorted = [...state.records].sort((a, b) => a.date.localeCompare(b.date));
+  const records = [...app.state.records].sort((a, b) => b.date.localeCompare(a.date));
 
-  countEl.textContent = `${sorted.length} 件`;
+  $("recCount").textContent = `${records.length}件`;
 
-  if (sorted.length === 0) {
+  if (!records.length) {
     tbody.innerHTML = "";
     empty.style.display = "block";
     return;
   }
 
   empty.style.display = "none";
-  tbody.innerHTML = sorted.map((record) => {
-    const hours = calcHours(record);
+  tbody.innerHTML = records.map((record) => {
     const badge = record.type === "full"
-      ? '<span class="badge badge-full">終日</span>'
-      : '<span class="badge badge-partial">時間単位</span>';
+      ? '<span class="badge badge-full">全休</span>'
+      : '<span class="badge badge-partial">時間休</span>';
 
-    return `<tr class="${record.id === editingId ? "is-editing-row" : ""}">
-      <td class="mono">${record.date}</td>
-      <td>${badge}</td>
-      <td class="mono">${record.startTime ?? "-"}</td>
-      <td class="mono">${record.endTime ?? "-"}</td>
-      <td class="num">${fmtH(hours)} h</td>
-      <td class="ops">
-        <button class="btn btn-row btn-row-edit" data-action="edit" data-id="${record.id}">編集</button>
-        <button class="btn btn-row btn-row-del" data-action="delete" data-id="${record.id}">削除</button>
-      </td>
-    </tr>`;
+    return `
+      <tr class="${record.id === editingId ? "is-editing-row" : ""}">
+        <td class="mono">
+          <div class="table-cell-date">
+            <span>${record.date}</span>
+            <small>${formatDate(record.date)}</small>
+          </div>
+        </td>
+        <td>${badge}</td>
+        <td class="mono">${record.startTime ?? "-"}</td>
+        <td class="mono">${record.endTime ?? "-"}</td>
+        <td class="num">${formatHours(calcRecordHours(record))} h</td>
+        <td class="ops">
+          <button class="btn btn-row btn-row-edit" data-action="edit" data-id="${record.id}">編集</button>
+          <button class="btn btn-row btn-row-del" data-action="delete" data-id="${record.id}">削除</button>
+        </td>
+      </tr>
+    `;
   }).join("");
 }
 
-function onTypeChange() {
-  const partial = $("iType").value === "partial";
-  $("iStart").disabled = !partial;
-  $("iEnd").disabled = !partial;
-  if (!partial) {
+function setFormMode(mode) {
+  const isEdit = mode === "edit";
+  $("formTitle").textContent = isEdit ? "記録を編集" : "新しい記録を追加";
+  $("btnSubmit").textContent = isEdit ? "更新する" : "追加する";
+  $("btnCancel").style.display = isEdit ? "inline-flex" : "none";
+  $("formCard").classList.toggle("is-editing", isEdit);
+  $("editBanner").style.display = isEdit ? "flex" : "none";
+}
+
+function syncTypeInputs() {
+  const isPartial = $("iType").value === "partial";
+  $("iStart").disabled = !isPartial;
+  $("iEnd").disabled = !isPartial;
+  $("formHint").textContent = isPartial
+    ? "開始・終了時間から取得時間を自動計算します。"
+    : "全休は 1 日あたりの設定時間をそのまま使用します。";
+
+  if (!isPartial) {
     $("iStart").value = "";
     $("iEnd").value = "";
   }
+
   $("formErr").textContent = "";
 }
 
-function validate() {
+function resetForm() {
+  $("editId").value = "";
+  $("iDate").value = todayStr();
+  $("iType").value = "full";
+  $("iStart").value = "";
+  $("iEnd").value = "";
+  $("editBannerTitle").textContent = "編集中";
+  $("editBannerText").textContent = "";
+  syncTypeInputs();
+  setFormMode("create");
+}
+
+function validateForm() {
   const date = $("iDate").value;
   const type = $("iType").value;
   const start = $("iStart").value;
   const end = $("iEnd").value;
-  const errEl = $("formErr");
 
   if (!date) {
-    errEl.textContent = "取得日を入力してください。";
-    return null;
+    return "取得日を入力してください。";
   }
 
   if (type === "partial") {
     if (!start || !end) {
-      errEl.textContent = "開始時刻と終了時刻を入力してください。";
-      return null;
-    }
-    const rawStart = toMinutes(start);
-    const rawEnd = toMinutes(end);
-    if (rawStart === null || rawEnd === null || rawEnd <= rawStart) {
-      errEl.textContent = "終了時刻は開始時刻より後にしてください。";
-      return null;
+      return "時間休では開始時間と終了時間が必要です。";
     }
 
-    const hours = calcPartialHours(start, end);
-    if (hours <= 0) {
-      errEl.textContent = "休憩控除後の取得時間が0時間以下です。開始・終了または休憩設定を確認してください。";
-      return null;
+    const startMinutes = toMinutes(start);
+    const endMinutes = toMinutes(end);
+    if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) {
+      return "終了時間は開始時間より後にしてください。";
     }
 
-    const perDay = state.settings.hoursPerDay;
-    if (hours > perDay) {
-      errEl.textContent = `取得時間（${fmtH(hours)}h）が終日時間（${perDay}h）を超えています。`;
-      return null;
+    const partialHours = calcPartialHours(start, end);
+    if (partialHours <= 0) {
+      return "取得時間が 0 時間以下です。昼休憩設定も確認してください。";
+    }
+
+    if (partialHours > app.state.settings.hoursPerDay) {
+      return `時間休の ${formatHours(partialHours)}h が 1日あたりの ${formatHours(app.state.settings.hoursPerDay)}h を超えています。`;
     }
   }
 
-  errEl.textContent = "";
+  return "";
+}
+
+function getFormData() {
+  const type = $("iType").value;
   return {
-    date,
+    date: $("iDate").value,
     type,
-    startTime: type === "partial" ? start : null,
-    endTime: type === "partial" ? end : null
+    startTime: type === "partial" ? $("iStart").value : null,
+    endTime: type === "partial" ? $("iEnd").value : null
   };
 }
 
 async function submitForm() {
-  const data = validate();
-  if (!data) return;
+  const errorMessage = validateForm();
+  $("formErr").textContent = errorMessage;
+  if (errorMessage) return;
 
+  const payload = getFormData();
   const editId = $("editId").value;
+
   if (editId) {
-    const index = state.records.findIndex((record) => record.id === editId);
-    if (index !== -1) state.records[index] = { ...state.records[index], ...data };
-    cancelEdit();
+    const index = app.state.records.findIndex((record) => record.id === editId);
+    if (index !== -1) {
+      app.state.records[index] = { ...app.state.records[index], ...payload };
+    }
   } else {
-    state.records.push({ id: crypto.randomUUID(), ...data });
-    resetForm();
+    app.state.records.push({ id: crypto.randomUUID(), ...payload });
   }
 
+  resetForm();
   render();
   await persist();
 }
 
 function startEdit(id) {
-  const record = state.records.find((item) => item.id === id);
+  const record = app.state.records.find((item) => item.id === id);
   if (!record) return;
 
-  $("editId").value = id;
+  $("editId").value = record.id;
   $("iDate").value = record.date;
   $("iType").value = record.type;
-
-  const partial = record.type === "partial";
-  $("iStart").disabled = !partial;
-  $("iEnd").disabled = !partial;
   $("iStart").value = record.startTime ?? "";
   $("iEnd").value = record.endTime ?? "";
-
-  $("formTitle").textContent = "編集";
-  $("btnSubmit").textContent = "更新";
-  $("btnCancel").style.display = "inline-flex";
-  $("formCard").classList.add("is-editing");
-  $("formErr").textContent = "";
-
-  $("formCard").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  $("editBannerTitle").textContent = "この記録を編集中";
+  $("editBannerText").textContent = `${record.date} / ${record.type === "full" ? "全休" : "時間休"} を更新できます`;
+  syncTypeInputs();
+  setFormMode("edit");
   renderTable();
+  $("formCard").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("iDate").focus({ preventScroll: true });
 }
 
 function cancelEdit() {
-  $("editId").value = "";
   resetForm();
-  $("formTitle").textContent = "新規登録";
-  $("btnSubmit").textContent = "登録";
-  $("btnCancel").style.display = "none";
-  $("formCard").classList.remove("is-editing");
   renderTable();
 }
 
-function resetForm() {
-  $("iDate").value = todayStr();
-  $("iType").value = "full";
-  $("iStart").value = "";
-  $("iEnd").value = "";
-  $("iStart").disabled = true;
-  $("iEnd").disabled = true;
-  $("formErr").textContent = "";
-}
-
 async function deleteRecord(id) {
-  const record = state.records.find((item) => item.id === id);
+  const record = app.state.records.find((item) => item.id === id);
   if (!record) return;
-  if (!confirm(`${record.date} の記録を削除しますか？`)) return;
 
-  state.records = state.records.filter((item) => item.id !== id);
-  if ($("editId").value === id) cancelEdit();
-  render();
-  await persist();
-}
+  const confirmed = window.confirm(`${record.date} の記録を削除しますか？`);
+  if (!confirmed) return;
 
-function openSettings() {
-  if (!fileHandle) return;
-  $("sTotalDays").value = state.settings.totalDays;
-  $("sPerDay").value = state.settings.hoursPerDay;
-  $("sDeadlineInput").value = state.settings.deadline ?? "";
-  $("sDeductLunch").checked = state.settings.deductLunchBreak;
-  $("sLunchStart").value = state.settings.lunchStart ?? "12:00";
-  $("sLunchEnd").value = state.settings.lunchEnd ?? "13:00";
-  syncLunchInputs();
-  $("modalOverlay").classList.add("open");
-}
-
-function closeSettings() {
-  $("modalOverlay").classList.remove("open");
-}
-
-async function saveSettings() {
-  state.settings = {
-    totalDays: Number($("sTotalDays").value) || 0,
-    hoursPerDay: Number($("sPerDay").value) || 8,
-    deadline: $("sDeadlineInput").value,
-    deductLunchBreak: $("sDeductLunch").checked,
-    lunchStart: $("sLunchStart").value || "12:00",
-    lunchEnd: $("sLunchEnd").value || "13:00"
-  };
-  closeSettings();
+  app.state.records = app.state.records.filter((item) => item.id !== id);
+  if ($("editId").value === id) resetForm();
   render();
   await persist();
 }
@@ -407,10 +469,43 @@ function syncLunchInputs() {
   $("sLunchEnd").disabled = !enabled;
 }
 
+function openSettings() {
+  if (!app.fileHandle) return;
+  $("sTotalDays").value = app.state.settings.totalDays;
+  $("sPerDay").value = app.state.settings.hoursPerDay;
+  $("sDeadlineInput").value = app.state.settings.deadline;
+  $("sDeductLunch").checked = app.state.settings.deductLunchBreak;
+  $("sLunchStart").value = app.state.settings.lunchStart;
+  $("sLunchEnd").value = app.state.settings.lunchEnd;
+  syncLunchInputs();
+  $("modalOverlay").classList.add("open");
+}
+
+function closeSettings() {
+  $("modalOverlay").classList.remove("open");
+}
+
+async function saveSettings() {
+  app.state.settings = normalizeSettings({
+    totalDays: Number($("sTotalDays").value),
+    hoursPerDay: Number($("sPerDay").value),
+    deadline: $("sDeadlineInput").value,
+    deductLunchBreak: $("sDeductLunch").checked,
+    lunchStart: $("sLunchStart").value,
+    lunchEnd: $("sLunchEnd").value
+  });
+
+  closeSettings();
+  render();
+  await persist();
+}
+
 async function openDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore(DB_STORE);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(DB_STORE);
+    };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -421,7 +516,7 @@ async function storeHandle(handle) {
     const db = await openDB();
     db.transaction(DB_STORE, "readwrite").objectStore(DB_STORE).put(handle, DB_KEY);
   } catch (_) {
-    // ignore
+    // ignore restore cache errors
   }
 }
 
@@ -438,126 +533,138 @@ async function loadStoredHandle() {
   }
 }
 
-function setFileBadge(message) {
-  $("fileBadge").textContent = message;
+function setFileBadge(text) {
+  $("fileBadge").textContent = text;
+}
+
+function syncScreenState(hasFile) {
+  $("mainContent").style.display = hasFile ? "flex" : "none";
+  $("noFileScreen").style.display = hasFile ? "none" : "block";
+  $("headerActions").classList.toggle("is-hidden", !hasFile);
 }
 
 async function persistNow() {
-  if (!fileHandle) return;
-  const writable = await fileHandle.createWritable();
-  await writable.write(toJSON());
+  if (!app.fileHandle) return;
+  const writable = await app.fileHandle.createWritable();
+  await writable.write(createPayload());
   await writable.close();
 
-  setFileBadge(`${fileHandle.name} ✓`);
+  setFileBadge(`${app.fileHandle.name} 保存済み`);
   clearTimeout($("fileBadge")._saveTimer);
   $("fileBadge")._saveTimer = setTimeout(() => {
-    setFileBadge(fileHandle.name);
+    if (app.fileHandle) setFileBadge(app.fileHandle.name);
   }, 1200);
 }
 
 function persist() {
-  persistQueue = persistQueue
+  app.persistQueue = app.persistQueue
     .then(() => persistNow())
     .catch((error) => {
-      setFileBadge(`保存失敗: ${error.message}`);
-      console.error("保存失敗:", error);
+      setFileBadge(`保存エラー: ${error.message}`);
+      console.error("保存エラー", error);
     });
-  return persistQueue;
+
+  return app.persistQueue;
 }
 
-async function readAndShow() {
-  const file = await fileHandle.getFile();
-  fromJSON(await file.text());
-  await storeHandle(fileHandle);
+async function readCurrentFile() {
+  const file = await app.fileHandle.getFile();
+  loadStateFromJSON(await file.text());
+  await storeHandle(app.fileHandle);
   onFileReady();
 }
 
 function onFileReady() {
-  setFileBadge(fileHandle.name);
-  $("mainContent").style.display = "flex";
-  $("noFileScreen").style.display = "none";
+  setFileBadge(app.fileHandle.name);
+  syncScreenState(true);
   $("btnRestore").style.display = "none";
+  $("btnRestoreStart").style.display = "none";
   $("btnSettings").disabled = false;
-  cancelEdit();
+  resetForm();
   render();
+}
+
+function buildPickerOptions(extra = {}) {
+  const options = {
+    types: FILE_TYPE_OPTIONS,
+    ...extra
+  };
+
+  if (app.fileHandle) {
+    options.startIn = app.fileHandle;
+  }
+
+  return options;
+}
+
+async function ensureReadWritePermission(handle) {
+  const permission = await handle.requestPermission({ mode: "readwrite" });
+  return permission === "granted";
 }
 
 async function openFile() {
   try {
-    const options = {
-      types: [{ description: "JSON", accept: { "application/json": [".json"] } }]
-    };
-    if (fileHandle) options.startIn = fileHandle;
-
-    [fileHandle] = await window.showOpenFilePicker(options);
-    const permission = await fileHandle.requestPermission({ mode: "readwrite" });
-    if (permission !== "granted") {
-      fileHandle = null;
-      alert("書き込み権限が必要です。");
+    const [handle] = await window.showOpenFilePicker(buildPickerOptions());
+    const granted = await ensureReadWritePermission(handle);
+    if (!granted) {
+      window.alert("読み書き権限が必要です。");
       return;
     }
 
-    await readAndShow();
+    app.fileHandle = handle;
+    await readCurrentFile();
   } catch (error) {
-    if (error.name !== "AbortError") alert(`読み込み失敗: ${error.message}`);
+    if (error.name !== "AbortError") {
+      window.alert(`ファイルを開けませんでした: ${error.message}`);
+    }
   }
 }
 
 async function newFile() {
   try {
-    const options = {
-      suggestedName: "nenkyuu.json",
-      types: [{ description: "JSON", accept: { "application/json": [".json"] } }]
-    };
-    if (fileHandle) options.startIn = fileHandle;
+    const handle = await window.showSaveFilePicker(buildPickerOptions({
+      suggestedName: "nenkyuu.json"
+    }));
 
-    fileHandle = await window.showSaveFilePicker(options);
-    state = {
-      settings: {
-        totalDays: 20,
-        hoursPerDay: 8,
-        deadline: "",
-        deductLunchBreak: false,
-        lunchStart: "12:00",
-        lunchEnd: "13:00"
-      },
-      records: []
-    };
-
+    app.fileHandle = handle;
+    app.state = createDefaultState();
     await persistNow();
-    await storeHandle(fileHandle);
+    await storeHandle(handle);
     onFileReady();
   } catch (error) {
-    if (error.name !== "AbortError") alert(`新規作成失敗: ${error.message}`);
+    if (error.name !== "AbortError") {
+      window.alert(`新規ファイルを作成できませんでした: ${error.message}`);
+    }
   }
 }
 
 async function restoreFile() {
-  const stored = await loadStoredHandle();
-  if (!stored) return;
+  const storedHandle = await loadStoredHandle();
+  if (!storedHandle) return;
 
-  const permission = await stored.requestPermission({ mode: "readwrite" });
-  if (permission !== "granted") {
-    alert("前回ファイルへのアクセス権限が必要です。\n権限が拒否されたため、手動で「開く」を使ってください。");
+  const granted = await ensureReadWritePermission(storedHandle);
+  if (!granted) {
+    window.alert("復元するには読み書き権限が必要です。もう一度お試しください。");
     return;
   }
 
-  fileHandle = stored;
-  await readAndShow();
+  app.fileHandle = storedHandle;
+  await readCurrentFile();
 }
 
 async function tryAutoRestoreOnLaunch() {
-  const stored = await loadStoredHandle();
-  if (!stored) return;
+  const storedHandle = await loadStoredHandle();
+  if (!storedHandle) return;
 
-  $("restoreName").textContent = stored.name;
+  $("restoreName").textContent = storedHandle.name;
   $("restoreHint").style.display = "block";
   $("btnRestore").style.display = "inline-flex";
+  $("btnRestoreStart").style.display = "inline-flex";
 
-  const permission = await stored.queryPermission({ mode: "readwrite" });
+  const permission = await storedHandle.queryPermission({ mode: "readwrite" });
   if (permission === "granted") {
-    fileHandle = stored;
-    await readAndShow();
+    app.fileHandle = storedHandle;
+    await readCurrentFile();
   }
 }
 
@@ -567,6 +674,7 @@ function bindEvents() {
   $("btnNew").addEventListener("click", newFile);
   $("btnNewStart").addEventListener("click", newFile);
   $("btnRestore").addEventListener("click", restoreFile);
+  $("btnRestoreStart").addEventListener("click", restoreFile);
 
   $("btnSettings").addEventListener("click", openSettings);
   $("btnModalClose").addEventListener("click", closeSettings);
@@ -574,26 +682,29 @@ function bindEvents() {
   $("btnSaveSettings").addEventListener("click", saveSettings);
   $("sDeductLunch").addEventListener("change", syncLunchInputs);
 
-  $("btnCancel").addEventListener("click", cancelEdit);
   $("btnSubmit").addEventListener("click", submitForm);
-  $("iType").addEventListener("change", onTypeChange);
+  $("btnCancel").addEventListener("click", cancelEdit);
+  $("btnCancelBanner").addEventListener("click", cancelEdit);
+  $("iType").addEventListener("change", syncTypeInputs);
 
   $("recTbody").addEventListener("click", async (event) => {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
-    const id = button.dataset.id;
 
     if (button.dataset.action === "edit") {
-      startEdit(id);
+      startEdit(button.dataset.id);
       return;
     }
+
     if (button.dataset.action === "delete") {
-      await deleteRecord(id);
+      await deleteRecord(button.dataset.id);
     }
   });
 
   $("modalOverlay").addEventListener("click", (event) => {
-    if (event.target === event.currentTarget) closeSettings();
+    if (event.target === event.currentTarget) {
+      closeSettings();
+    }
   });
 
   document.addEventListener("keydown", (event) => {
@@ -602,6 +713,7 @@ function bindEvents() {
 }
 
 async function init() {
+  syncScreenState(false);
   resetForm();
   bindEvents();
   await tryAutoRestoreOnLaunch();
