@@ -9,7 +9,7 @@
 
 1. 配布された zip ファイルをダウンロード
 2. 任意のフォルダに解凍
-3. 解凍されたフォルダ内の `Nenkyu.html` を開く
+3. 解凍されたフォルダ内の `index.html` を開く
 
 ### 方法2: Gitでクローン（Git使用者向け）
 
@@ -18,13 +18,13 @@ git clone <リポジトリURL>
 cd <フォルダ名>
 ```
 
-その後 `Nenkyu.html` を開く
+その後 `index.html` を開く
 
 ### 方法3: ファイルを直接コピー
 
 以下のファイルを同一フォルダに配置
 
-* `Nenkyu.html`
+* `index.html`
 * `Nenkyu.css`
 * `Nenkyu.js`
 
@@ -40,14 +40,14 @@ cd <フォルダ名>
 
 ## ファイル構成
 
-* `Nenkyu.html`: 画面のマークアップ
+* `index.html`: 画面のマークアップ
 * `Nenkyu.css`: レイアウトとスタイル
 * `Nenkyu.js`: 状態管理、描画、入力処理、ファイル操作
 * `nenkyuu.json`: サンプルデータ
 
 ## 使い方
 
-1. `Nenkyu.html` を Edge / Chrome などで開く
+1. `index.html` を Edge / Chrome などで開く
 2. 初期画面で `ファイルを開く`、`新規作成`、または `前回のデータを復元` を選ぶ
 3. 記録や設定を編集する
 4. 保存は JSON ファイルへ自動反映される
@@ -76,7 +76,7 @@ npx serve
 ### 方法C: VSCode
 
 * 拡張機能「Live Server」をインストール
-* `Nenkyu.html` を右クリック → 「Open with Live Server」
+* `index.html` を右クリック → 「Open with Live Server」
 
 ## データ形式
 
