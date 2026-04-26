@@ -22,15 +22,19 @@ PCブラウザから使うメインのアプリです。
 - `Nenkyu.css`: レイアウトとスタイル
 - `Nenkyu.js`: 状態管理、描画、入力処理、ファイル操作
 
-### モバイルアプリ版（開発予定）
+### モバイルアプリ版（Flutter / 別リポジトリで開発中）
 
-FlutterによるAndroid / iOSアプリです。同じJSONファイルを読み書きします。
+スマホブラウザでは File System Access API が使えないため、Flutter による別アプリとして開発しています。
+同じ JSON ファイルを読み書きします。
+
+- Android 版：[Htm43/nenkyu-flutter](https://github.com/Htm43/nenkyu-flutter)（非公開・開発中）
+- iOS 版：開発予定
 
 ## 使い方
 
 ### ブラウザ版
 
-1. [GitHub Pages のURL] をブラウザで開く
+1. [nenkyu-web](https://htm43.github.io/nenkyu-web/) をブラウザで開く
 2. 初期画面で `ファイルを開く`、`新規作成`、または `前回のデータを復元` を選ぶ
 3. 記録や設定を編集する
 4. 保存は JSON ファイルへ自動反映される
@@ -90,6 +94,8 @@ JSON ファイルをクラウドストレージの同期フォルダに置くこ
 
 - File System Access API を使うため、対応ブラウザは主に Chromium 系（Chrome / Edge）です
 - Safari・スマホブラウザには対応していません
+- スマホからの利用は Flutter アプリ版をご利用ください（[Htm43/nenkyu-flutter](https://github.com/Htm43/nenkyu-flutter)）
+
 -----
 
 ## 技術選定理由
@@ -113,7 +119,7 @@ JSON ファイルをクラウドストレージの同期フォルダに置くこ
 ## 制約
 
 - 同時編集不可
-- スマホブラウザからの編集不可（File System Access API非対応のため）
+- スマホブラウザからの編集不可（File System Access API非対応のため）→ Flutter アプリ版で対応中
 - 自動バックアップなし
 - 大規模データ非対応
 
@@ -162,4 +168,4 @@ JSON ファイルをクラウドストレージの同期フォルダに置くこ
 
 ローカル完結の個人用途として適合する。
 クラウドストレージの同期フォルダを活用することで、デバイス間同期も無理なく実現できる。
-スマホからの編集は別途Flutterアプリ（開発予定）で対応予定。
+スマホからの編集は別途 Flutter アプリ（[Htm43/nenkyu-flutter](https://github.com/Htm43/nenkyu-flutter)）で対応中。
