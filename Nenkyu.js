@@ -300,7 +300,21 @@ function renderTable() {
   }
 
   empty.style.display = "none";
-  list.innerHTML = records.map((record) => {
+  // 今日の日付
+  const today = todayStr();
+  // 未来分の一番下（過去との境界）を探す
+  let boundaryIdx = -1;
+  for (let i = 0; i < records.length; i++) {
+    if (records[i].date > today) boundaryIdx = i;
+    else break;
+  }
+  let html = "";
+  for (let i = 0; i < records.length; i++) {
+    // 未来分の一番下の直後に区切り線を挿入
+    if (i === boundaryIdx + 1 && boundaryIdx !== -1) {
+      html += `<div class="history-future-sep"><span>ここから未来の予定</span></div>`;
+    }
+    const record = records[i];
     const badge = record.type === "full"
       ? '<span class="badge badge-full">全休</span>'
       : '<span class="badge badge-partial">時間休</span>';
@@ -308,9 +322,8 @@ function renderTable() {
     const timeRange = record.type === "partial"
       ? `${record.startTime ?? "-"} - ${record.endTime ?? "-"}`
       : "終日";
-
-    return `
-      <article class="history-row ${record.id === editingId ? "is-editing-row" : ""}">
+    html += `
+      <article class="history-row${record.id === editingId ? ' is-editing-row' : ''}">
         <div class="history-main">
           <div class="history-cell history-date mono">
             <span class="history-label">日付</span>
@@ -343,7 +356,8 @@ function renderTable() {
         ` : ""}
       </article>
     `;
-  }).join("");
+  }
+  list.innerHTML = html;
 }
 
 function setFormMode(mode) {

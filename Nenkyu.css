@@ -1,3 +1,23 @@
+.history-future-sep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 18px 0 0 0;
+  padding: 0;
+  border-top: 2px dashed var(--accent);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  background: transparent;
+}
+
+.history-future-sep span {
+  background: var(--surface);
+  padding: 0 16px;
+  position: relative;
+  top: -0.7em;
+}
+
 :root {
   --bg: #f4efe6;
   --surface: rgba(255, 252, 247, 0.92);
@@ -606,27 +626,27 @@ select {
   font-weight: 700;
 }
 
-.history-head > span:nth-child(1) {
+.history-head>span:nth-child(1) {
   justify-self: start;
   text-align: left;
 }
 
-.history-head > span:nth-child(2) {
+.history-head>span:nth-child(2) {
   justify-self: center;
   text-align: center;
 }
 
-.history-head > span:nth-child(3) {
+.history-head>span:nth-child(3) {
   justify-self: center;
   text-align: center;
 }
 
-.history-head > span:nth-child(4) {
+.history-head>span:nth-child(4) {
   justify-self: center;
   text-align: center;
 }
 
-.history-head > span:nth-child(5) {
+.history-head>span:nth-child(5) {
   justify-self: end;
   text-align: right;
   padding-right: 10px;
@@ -664,8 +684,8 @@ select {
   align-items: center;
 }
 
-.table-cell-date > span,
-.table-cell-date > small {
+.table-cell-date>span,
+.table-cell-date>small {
   white-space: nowrap;
 }
 
@@ -976,6 +996,7 @@ select {
 }
 
 @media (max-width: 620px) {
+
   .summary,
   .form-grid,
   .form-grid-compact {
@@ -1010,11 +1031,27 @@ select {
     align-items: start;
   }
 
-  .history-date { grid-area: date; }
-  .history-type { grid-area: type; }
-  .history-time-range { grid-area: time; }
-  .history-hours { grid-area: hours; text-align: left; }
-  .history-actions { grid-area: actions; justify-self: start; }
+  .history-date {
+    grid-area: date;
+  }
+
+  .history-type {
+    grid-area: type;
+  }
+
+  .history-time-range {
+    grid-area: time;
+  }
+
+  .history-hours {
+    grid-area: hours;
+    text-align: left;
+  }
+
+  .history-actions {
+    grid-area: actions;
+    justify-self: start;
+  }
 
   .history-label {
     display: block;
@@ -1046,8 +1083,8 @@ select {
 
   .history-date .table-cell-date,
   .history-type .badge,
-  .history-time-range > span:last-child,
-  .history-hours > span:last-child {
+  .history-time-range>span:last-child,
+  .history-hours>span:last-child {
     justify-self: start;
   }
 
